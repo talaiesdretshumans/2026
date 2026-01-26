@@ -224,8 +224,8 @@ html, body { height:100%; margin:0; background:#000; font-family:Arial,sans-seri
   user-select: none;
 }
 @keyframes gpsBlink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0.2; }
+  0%, 49% { opacity: 0.5; }
+  50%, 100% { opacity: 0.5; }
 }
 .leaflet-control-locate.gps-active .gps-label {
   animation: gpsBlink 0.9s linear infinite;
@@ -272,7 +272,7 @@ html, body { height:100%; margin:0; background:#000; font-family:Arial,sans-seri
 .name-search .name-search-item:last-child{ border-bottom:none; }
 .name-search .name-search-item:hover{ background:#111; }
 .name-search .name-search-title{ font-weight:700; }
-.name-search .name-search-sub{ font-size:11px; opacity:0.85; margin-top:2px; }
+.name-search .name-search-sub{ font-size:11px; opacity:0.5; margin-top:2px; }
 
 
 /* Cercador minimitzable */
@@ -333,7 +333,7 @@ html, body { height:100%; margin:0; background:#000; font-family:Arial,sans-seri
 .territori-count{
   font: 700 12px/1 Arial, sans-serif;
   margin-left: 4px;
-  opacity: 0.95;
+  opacity: 0.5;
 }
 
 
@@ -366,7 +366,7 @@ html, body { height:100%; margin:0; background:#000; font-family:Arial,sans-seri
 <body>
 <div class="map-title">Talaies pels drets humans 2026</div>
 <div class="attribution-box">
-  Autor: Llorenç Guasp, 2026<br>
+  Autor: <a href="https://www.instagram.com/llorencguasp?igsh=M2x3bG9pN2RoaXps" target="_blank" rel="noopener">Llorenç Guasp</a>, 2026<br>
   Agraïments: Josep Lluís Pol, Fons Mallorquí de Solidaritat i
   <a href="https://www.torresitalaies.cat/" target="_blank" rel="noopener">www.torresitalaies.cat</a>
 </div>
@@ -441,6 +441,8 @@ function buildPopupHTML(props){
 // ------------------------------
 const map = L.map("map").setView([39.7, 3.0], 9);
 
+
+
 // Contaminació al fons
 const pollutionPane = map.createPane("pollutionPane");
 pollutionPane.style.zIndex = 350;
@@ -485,10 +487,10 @@ const relleu = L.tileLayer(
 // ------------------------------
 const liniesOverlay = L.featureGroup(); // es marca quan s'activa
 const baseMaps = {
-  "Mapa base (CARTO Light)": baseDefault,
-  "Mapa base (OSM Dark)": baseDark,
-  "Ortofoto (Esri World Imagery)": ortoEsri,
-  "Mapa de relleu": relleu
+  "Mapa OSM gris": baseDefault,
+  "Mapa OSM fosc": baseDark,
+  "Imatge aèrea": ortoEsri,
+  "Mapa topogràfic": relleu
 };
 const overlays = {
   "Línies de visibilitat": liniesOverlay
@@ -517,7 +519,7 @@ function estilLinia(f){
   const t = f.properties ? f.properties.Tipus : null;
   const c = colorsLinies[t] || "#ffffff";
   const dash = t === "REVISAR" ? "6,6" : null;
-  return { pane: "linesPane", color: c, weight: 3, opacity: 0.9, dashArray: dash };
+  return { pane: "linesPane", color: c, weight: 3, opacity: 0.5, dashArray: dash };
 }
 
 // ------------------------------
@@ -529,7 +531,7 @@ let talaiesLayer = null;
 let altresLayer = null;
 let contaminacioLayer = null;
 
-const labelZoom = 11;
+const labelZoom = 13;
 let talaiaLabelMarkers = []; // {label, visible}
 let altresLabelMarkers = []; // {label, visible}
 let liniaLabelMarkers = [];
@@ -672,9 +674,9 @@ map.addControl(new FullExtentControl());
 // Carrega dades (totes)
 // ------------------------------
 Promise.all([
-  fetch("talaies_260124.geojson").then(r => r.json()),
-  fetch("altres_punts_260124.geojson").then(r => r.json()),
-  fetch("linies_vis_260124.geojson").then(r => r.json()),
+  fetch("talaies_260126.geojson").then(r => r.json()),
+  fetch("altres_punts_260126.geojson").then(r => r.json()),
+  fetch("linies_vis_260126.geojson").then(r => r.json()),
   fetch("contaminacio_lum_4326.geojson").then(r => r.json())
 ]).then(([talaiesJSON, altresJSON, liniesJSON, contamJSON]) => {
 
@@ -689,13 +691,48 @@ Promise.all([
   function styleByDN(f){
     const dn = f.properties ? f.properties.DN : null;
     const c = DN_COLORS[dn] || "#999";
-    return { pane:"pollutionPane", color:c, weight:1, opacity:0.7, fillColor:c, fillOpacity:0.7 };
+    return { pane:"pollutionPane", color:c, weight:1, opacity:0.5, fillColor:c, fillOpacity:0.5 };
   }
   contaminacioLayer = L.geoJSON(contamJSON, { pane:"pollutionPane", style: styleByDN });
   contaminacioLayer.on("add", () => { try { contaminacioLayer.bringToBack(); } catch(e) {} });
   layerControl.addOverlay(contaminacioLayer, "Contaminació lumínica");
 
-  // Altres punts (ON per defecte)
+  
+
+  // Visibilitat de la contaminació lumínica només a partir d'escala ~1:1.200.000 (zoom >= 9)
+  const contaminacioMinZoom = 9;
+  let contaminacioEnabled = false; // es controla via el checkbox del control de capes
+
+  function updateContaminacioVisibility(){
+    if (!contaminacioLayer) return;
+    const z = map.getZoom();
+    const shouldShow = contaminacioEnabled && z >= contaminacioMinZoom;
+
+    if (shouldShow){
+      if (!map.hasLayer(contaminacioLayer)) map.addLayer(contaminacioLayer);
+    } else {
+      if (map.hasLayer(contaminacioLayer)) map.removeLayer(contaminacioLayer);
+    }
+  }
+
+  // Quan l'usuari activa/desactiva la capa
+  map.on("overlayadd", (e) => {
+    if (e.layer === contaminacioLayer){
+      contaminacioEnabled = true;
+      updateContaminacioVisibility();
+    }
+  });
+  map.on("overlayremove", (e) => {
+    if (e.layer === contaminacioLayer){
+      contaminacioEnabled = false;
+      updateContaminacioVisibility();
+    }
+  });
+
+  map.on("zoomend", updateContaminacioVisibility);
+  updateContaminacioVisibility();
+
+// Altres punts (ON per defecte)
   altresLayer = L.geoJSON(altresJSON, {
     pointToLayer: (f, latlng) => {
       const s = (f.properties && f.properties.simbologia) || "";
@@ -739,7 +776,10 @@ Promise.all([
   });
   layerControl.addOverlay(altresLayer, "Altres punts");
 
-  // Talaies (ON per defecte) + etiquetes + click per línies
+  
+  // Altres punts actius per defecte
+  altresLayer.addTo(map);
+// Talaies (ON per defecte) + etiquetes + click per línies
   talaiesLayer = L.geoJSON(talaiesJSON, {
     pointToLayer: (f, latlng) => {
       const s = (f.properties && f.properties.simbologia) || "";
@@ -752,7 +792,7 @@ Promise.all([
         color: talaiesOutline,
         weight: 3,
         opacity: 1,
-        fillOpacity: 0.95
+        fillOpacity: 1
       });
     },
     onEachFeature: (f, lyr) => {
@@ -1077,10 +1117,10 @@ map.on("click", function(e){
 
   if (measurePoints.length === 0){
     measurePoints.push(latlng);
-    measureMarkers.push(L.circleMarker(latlng,{radius:4,color:"#fff",weight:1,fillColor:"#000",fillOpacity:1}).addTo(map));
+    measureMarkers.push(L.circleMarker(latlng,{radius:4,color:"#fff",weight:1,fillColor:"#000",fillOpacity:0.5}).addTo(map));
   } else if (measurePoints.length === 1){
     measurePoints.push(latlng);
-    measureMarkers.push(L.circleMarker(latlng,{radius:4,color:"#fff",weight:1,fillColor:"#000",fillOpacity:1}).addTo(map));
+    measureMarkers.push(L.circleMarker(latlng,{radius:4,color:"#fff",weight:1,fillColor:"#000",fillOpacity:0.5}).addTo(map));
 
     if (measureLine) map.removeLayer(measureLine);
     measureLine = L.polyline([measurePoints[0], measurePoints[1]], {color:"#00ffff", weight:2, dashArray:"4,4"}).addTo(map);
@@ -1098,7 +1138,7 @@ map.on("click", function(e){
   } else {
     clearMeasurement();
     measurePoints.push(latlng);
-    measureMarkers.push(L.circleMarker(latlng,{radius:4,color:"#fff",weight:1,fillColor:"#000",fillOpacity:1}).addTo(map));
+    measureMarkers.push(L.circleMarker(latlng,{radius:4,color:"#fff",weight:1,fillColor:"#000",fillOpacity:0.5}).addTo(map));
   }
 });
 
