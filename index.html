@@ -20,6 +20,10 @@
 <style>
 html, body { height:100%; margin:0; background:#000; font-family:Arial,sans-serif; }
 #map { height:100vh; width:100vw; background:#000; }
+/* Mapes base Esri amb relleu */
+.hillshade-multiply { mix-blend-mode: multiply; }
+.dark-base { filter: brightness(.5) contrast(1.15) saturate(.6); }
+.dark-labels { filter: brightness(.8); }
 
 
 .map-title {
@@ -462,15 +466,36 @@ const talaiesYesPane = map.createPane("talaiesYesPane"); talaiesYesPane.style.zI
 // ------------------------------
 // Bases
 // ------------------------------
-const baseDark = L.tileLayer(
-  "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-  { subdomains: "abcd", maxZoom: 19, attribution: "CARTO Dark | © OpenStreetMap contributors" }
-);
+// CARTO (light_all / dark_all) ara demana clau d'API: se substitueix per Esri
+// (mateixos mapes que el visor 3D de fitageo.com): base gris/fosca + relleu + noms.
+const labelsPane = map.createPane("labelsPane");   // noms per sobre del relleu i per sota de les dades
+labelsPane.style.zIndex = 250;
+labelsPane.style.pointerEvents = "none";
 
-const baseDefault = L.tileLayer(
-  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-  { subdomains: "abcd", maxZoom: 19, attribution: "CARTO | © OpenStreetMap contributors" }
-).addTo(map);
+const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/";
+const ESRI_ATTR = "Esri, HERE, Garmin, © OpenStreetMap contributors";
+const RELLEU_ATTR = "Relleu: Esri, USGS, NASA, CGIAR";
+
+// Gris: Light Gray + World_Hillshade (45 %, multiplicar) + etiquetes
+const baseDefault = L.layerGroup([
+  L.tileLayer(ESRI + "Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    { maxNativeZoom: 16, maxZoom: 19, attribution: ESRI_ATTR }),
+  L.tileLayer(ESRI + "Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
+    // z16 torna "Map data not yet available": s'amplia el 15
+    { maxNativeZoom: 15, maxZoom: 19, opacity: 0.45, className: "hillshade-multiply", attribution: RELLEU_ATTR }),
+  L.tileLayer(ESRI + "Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+    { maxNativeZoom: 16, maxZoom: 19, pane: "labelsPane" })
+]).addTo(map);
+
+// Fosc: Dark Gray enfosquit + World_Hillshade_Dark (55 %) + etiquetes
+const baseDark = L.layerGroup([
+  L.tileLayer(ESRI + "Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    { maxNativeZoom: 16, maxZoom: 19, className: "dark-base", attribution: ESRI_ATTR }),
+  L.tileLayer(ESRI + "Elevation/World_Hillshade_Dark/MapServer/tile/{z}/{y}/{x}",
+    { maxNativeZoom: 15, maxZoom: 19, opacity: 0.55, attribution: RELLEU_ATTR }),
+  L.tileLayer(ESRI + "Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+    { maxNativeZoom: 16, maxZoom: 19, pane: "labelsPane", className: "dark-labels" })
+]);
 
 const ortoEsri = L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -487,8 +512,8 @@ const relleu = L.tileLayer(
 // ------------------------------
 const liniesOverlay = L.featureGroup(); // es marca quan s'activa
 const baseMaps = {
-  "Mapa OSM gris": baseDefault,
-  "Mapa OSM fosc": baseDark,
+  "Mapa gris amb relleu": baseDefault,
+  "Mapa fosc amb relleu": baseDark,
   "Imatge aèrea": ortoEsri,
   "Mapa topogràfic": relleu
 };
