@@ -22,8 +22,6 @@ html, body { height:100%; margin:0; background:#000; font-family:Arial,sans-seri
 #map { height:100vh; width:100vw; background:#000; }
 /* Mapes base Esri amb relleu */
 .hillshade-multiply { mix-blend-mode: multiply; }
-.dark-base { filter: brightness(.5) contrast(1.15) saturate(.6); }
-.dark-labels { filter: brightness(.8); }
 
 
 .map-title {
@@ -487,14 +485,12 @@ const baseDefault = L.layerGroup([
     { maxNativeZoom: 16, maxZoom: 19, pane: "labelsPane" })
 ]).addTo(map);
 
-// Fosc: Dark Gray enfosquit + World_Hillshade_Dark (55 %) + etiquetes
+// Fosc: Esri Dark Gray (igual que fitageo.com, sense enfosquir) + etiquetes
 const baseDark = L.layerGroup([
   L.tileLayer(ESRI + "Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-    { maxNativeZoom: 16, maxZoom: 19, className: "dark-base", attribution: ESRI_ATTR }),
-  L.tileLayer(ESRI + "Elevation/World_Hillshade_Dark/MapServer/tile/{z}/{y}/{x}",
-    { maxNativeZoom: 15, maxZoom: 19, opacity: 0.55, attribution: RELLEU_ATTR }),
+    { maxNativeZoom: 16, maxZoom: 19, attribution: ESRI_ATTR }),
   L.tileLayer(ESRI + "Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
-    { maxNativeZoom: 16, maxZoom: 19, pane: "labelsPane", className: "dark-labels" })
+    { maxNativeZoom: 16, maxZoom: 19, pane: "labelsPane" })
 ]);
 
 const ortoEsri = L.tileLayer(
@@ -513,7 +509,7 @@ const relleu = L.tileLayer(
 const liniesOverlay = L.featureGroup(); // es marca quan s'activa
 const baseMaps = {
   "Mapa gris amb relleu": baseDefault,
-  "Mapa fosc amb relleu": baseDark,
+  "Mapa fosc": baseDark,
   "Imatge aèrea": ortoEsri,
   "Mapa topogràfic": relleu
 };
